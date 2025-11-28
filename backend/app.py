@@ -12,7 +12,7 @@ from scraper import scrape_all
 from analyzer import analyze_items
 from gemini import analyze_price_with_gemini, batch_price_high_value_items
 
-app = Flask(__name__, static_folder='../frontend')
+app = Flask(__name__, static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend')))
 CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
