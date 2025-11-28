@@ -160,6 +160,17 @@ def run_gemini_analysis(id):
 def get_sellers_list():
     return jsonify(get_sellers())
 
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    return jsonify({
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "frontend_dir": FRONTEND_DIR,
+        "frontend_exists": os.path.exists(FRONTEND_DIR),
+        "index_exists": os.path.exists(os.path.join(FRONTEND_DIR, 'index.html')),
+        "cwd": os.getcwd()
+    })
+
 @app.route('/')
 def serve_index():
     index_path = os.path.join(FRONTEND_DIR, 'index.html')
