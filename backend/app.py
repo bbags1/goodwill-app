@@ -15,153 +15,32 @@ from gemini import analyze_price_with_gemini, batch_price_high_value_items
 app = Flask(__name__, static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend')))
 CORS(app)
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, 'gw_data.db')
-SELLER_MAP_PATH = os.path.join(BASE_DIR, 'seller_map.json')
-
-def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def get_sellers():
-    try:
-        with open(SELLER_MAP_PATH, 'r') as f:
-            return json.load(f)
-            except:
-        return {}
-
-# --- Scheduler ---
-def run_schedule():
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
-
-def daily_job():
-    print("Running Daily Scrape...")
-    asyncio.run(scrape_all())
-    analyze_items()
-    batch_price_high_value_items(DB_PATH, limit=50)
-
-# Schedule daily at 8 AM
-schedule.every().day.at("08:00").do(daily_job)
-threading.Thread(target=run_schedule, daemon=True).start()
-
-# --- API Endpoints ---
-
-@app.route('/api/refresh', methods=['POST'])
-def refresh_data():
-    """Triggers a fresh scrape and analysis."""
-    def run_pipeline():
-        asyncio.run(scrape_all())
-        analyze_items()
-        batch_price_high_value_items(DB_PATH, limit=20)
-        
-    thread = threading.Thread(target=run_pipeline)
-    thread.start()
-    return jsonify({"status": "started", "message": "Scraping & AI Analysis in background..."})
-
-@app.route('/api/items', methods=['GET'])
-def get_items():
-    """Search and Filter Items."""
-    search = request.args.get('search', '')
-    seller_id = request.args.get('seller_id', '')
-    min_score = request.args.get('min_score', 0, type=int)
-    sort = request.args.get('sort', 'score') # score, time, price
-    
-    # Filter expired items
-    query = "SELECT * FROM items WHERE end_time > ?"
-    params = [datetime.now().isoformat()]
-    
-    if search:
-        query += " AND title LIKE ?"
-        params.append(f"%{search}%")
-        
-    if seller_id:
-        query += " AND seller_id = ?"
-        params.append(seller_id)
-        
-    if min_score > 0:
-        query += " AND score >= ?"
-        params.append(min_score)
-        
-    # Sorting - Prioritize Profit
-    if sort == 'time':
-        query += " ORDER BY end_time ASC"
-    elif sort == 'price':
-        query += " ORDER BY price ASC"
-    else:
-        # Custom Sort: 
-        # 1. AI Verified Profit (Gemini Price - Cost) DESC
-        # 2. High Heuristic Score DESC
-        query += '''
-            ORDER BY 
-            CASE WHEN gemini_price > 0 THEN (gemini_price - price - shipping) ELSE -1000 END DESC, 
-            score DESC, 
-            end_time ASC
-        '''
-        
-    query += " LIMIT 200"
-    
-    conn = get_db_connection()
-    items = conn.execute(query, params).fetchall()
-            conn.close()
-    return jsonify([dict(ix) for ix in items])
-
-@app.route('/api/saved', methods=['GET'])
-def get_saved_items():
-    conn = get_db_connection()
-    items = conn.execute("SELECT * FROM items WHERE is_saved = 1 ORDER BY end_time ASC").fetchall()
-            conn.close()
-    return jsonify([dict(ix) for ix in items])
-
-@app.route('/api/items/<id>/save', methods=['POST'])
-def toggle_save(id):
-    conn = get_db_connection()
-    # Toggle
-    current = conn.execute("SELECT is_saved FROM items WHERE id = ?", (id,)).fetchone()
-    if current:
-        new_status = 0 if current['is_saved'] else 1
-        conn.execute("UPDATE items SET is_saved = ? WHERE id = ?", (new_status, id))
-        conn.commit()
-        conn.close()
-        return jsonify({"status": "success", "is_saved": new_status})
-        conn.close()
-    return jsonify({"error": "Item not found"}), 404
-
-@app.route('/api/items/<id>/analyze', methods=['POST'])
-def run_gemini_analysis(id):
-    conn = get_db_connection()
-    item = conn.execute("SELECT * FROM items WHERE id = ?", (id,)).fetchone()
-    
-    if not item:
-        conn.close()
-        return jsonify({"error": "Item not found"}), 404
-        
-    # Run Analysis
-    result = analyze_price_with_gemini(item['title'], item['price'], item['shipping'], item['image_url'])
-    
-    if result.get('estimated_value'):
-        conn.execute('''
-            UPDATE items 
-            SET gemini_price = ?, gemini_analysis = ? 
-            WHERE id = ?
-        ''', (result['estimated_value'], result['reasoning'], id))
-        conn.commit()
-    
-    conn.close()
-    return jsonify(result)
-
-@app.route('/api/sellers', methods=['GET'])
-def get_sellers_list():
-    return jsonify(get_sellers())
-
 @app.route('/')
 def serve_index():
-    # Debugging: Check if file exists
-    index_path = os.path.join(app.static_folder, 'index.html')
-    if not os.path.exists(index_path):
-        return f"Error: Frontend not found at {index_path}. <br> CWD: {os.getcwd()} <br> Files in CWD: {os.listdir('.')}"
+    # Debug Path
+    frontend_dir = app.static_folder
+    index_file = os.path.join(frontend_dir, 'index.html')
+    
+    if not os.path.exists(index_file):
+        # List contents of directories to find where the file actually is
+        try:
+            root_files = os.listdir('/app')
+        except:
+            root_files = "Cannot read /app"
+            
+        try:
+            cwd_files = os.listdir('.')
+        except:
+            cwd_files = "Cannot read ."
+            
+        return jsonify({
+            "error": "index.html not found",
+            "searched_at": index_file,
+            "app_static_folder": app.static_folder,
+            "files_in_root": root_files,
+            "files_in_cwd": cwd_files
+        })
+        
     return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/<path:path>')
