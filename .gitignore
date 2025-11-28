@@ -15,37 +15,3 @@ node_modules/
 old/
 notebooks/
 data/
-
-# Git
-venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-*.log
-
-# Node
-node_modules/
-
-# Ignore Python environment files
-.env
-.env.*
-
-# Allow GitHub Actions workflows
-!.github/
-!.github/workflows/

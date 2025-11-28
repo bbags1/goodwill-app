@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goodwill Vintage Hunter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col">
+
+    <!-- Navigation -->
+    <nav class="bg-gray-800 border-b border-gray-700 fixed w-full top-0 z-50 shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-gem text-purple-400 text-2xl"></i>
+                    <span class="text-xl font-bold tracking-wide">Vintage<span class="text-purple-400">Hunter</span></span>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex space-x-4 bg-gray-700 p-1 rounded-lg">
+                    <button onclick="switchTab('top')" id="tab-top" class="px-4 py-2 rounded-md text-sm font-medium transition bg-gray-600 text-white shadow">
+                        <i class="fa-solid fa-fire mr-2"></i>Top Picks
+                    </button>
+                    <button onclick="switchTab('search')" id="tab-search" class="px-4 py-2 rounded-md text-sm font-medium text-gray-400 hover:text-white transition">
+                        <i class="fa-solid fa-search mr-2"></i>Search
+                    </button>
+                    <button onclick="switchTab('saved')" id="tab-saved" class="px-4 py-2 rounded-md text-sm font-medium text-gray-400 hover:text-white transition">
+                        <i class="fa-solid fa-heart mr-2"></i>Saved
+                    </button>
+                </div>
+
+                <!-- Refresh -->
+                <button onclick="refreshData()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2">
+                    <i class="fa-solid fa-sync"></i> <span class="hidden md:inline">Refresh Feed</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto pt-20 pb-10 px-4 flex-grow">
+        
+        <!-- Search Filters (Only visible on Search Tab) -->
+        <div id="search-filters" class="hidden mb-8 bg-gray-800 p-4 rounded-xl shadow-md border border-gray-700">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Keywords</label>
+                    <input type="text" id="search-input" placeholder="e.g. 'Le Creuset' or 'Oil Painting'" 
+                           class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Location</label>
+                    <select id="seller-select" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500">
+                        <option value="">All Locations</option>
+                        <!-- Sellers populated via JS -->
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button onclick="performSearch()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded-lg transition">
+                        Search Database
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Views -->
+        <div id="view-top" class="view-section">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-semibold text-gray-200">High Potential Finds</h2>
+                <span class="text-sm text-gray-500" id="last-updated">Updated: Just now</span>
+            </div>
+            <div id="grid-top" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+        </div>
+
+        <div id="view-search" class="view-section hidden">
+            <h2 class="text-2xl font-semibold text-gray-200 mb-6">Database Search</h2>
+            <div id="grid-search" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div class="col-span-full text-center text-gray-500 py-10">Use the filters above to find items.</div>
+            </div>
+        </div>
+
+        <div id="view-saved" class="view-section hidden">
+            <h2 class="text-2xl font-semibold text-gray-200 mb-6">My Watchlist</h2>
+            <div id="grid-saved" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+        </div>
+
+    </main>
+
+    <!-- Modal for Analysis -->
+    <div id="analysis-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-gray-800 p-6 rounded-2xl max-w-md w-full border border-gray-600 shadow-2xl transform transition-all">
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="text-xl font-bold text-purple-400">AI Valuation</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times text-xl"></i></button>
+            </div>
+            <div id="modal-content" class="space-y-4">
+                <div class="animate-pulse flex space-x-4">
+                    <div class="flex-1 space-y-4 py-1">
+                        <div class="h-4 bg-gray-700 rounded w-3/4"></div>
+                        <div class="space-y-2">
+                            <div class="h-4 bg-gray-700 rounded"></div>
+                            <div class="h-4 bg-gray-700 rounded w-5/6"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'top';
+        const API_URL = '/api';
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTopPicks();
+            loadSellers();
+        });
+
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update UI Tabs
+            ['top', 'search', 'saved'].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                const view = document.getElementById(`view-${t}`);
+                
+                if (t === tab) {
+                    btn.classList.remove('text-gray-400', 'bg-transparent');
+                    btn.classList.add('bg-gray-600', 'text-white', 'shadow');
+                    view.classList.remove('hidden');
+                } else {
+                    btn.classList.add('text-gray-400', 'bg-transparent');
+                    btn.classList.remove('bg-gray-600', 'text-white', 'shadow');
+                    view.classList.add('hidden');
+                }
+            });
+
+            // Show/Hide Search Filters
+            const searchFilters = document.getElementById('search-filters');
+            if (tab === 'search') {
+                searchFilters.classList.remove('hidden');
+            } else {
+                searchFilters.classList.add('hidden');
+            }
+
+            // Load Data
+            if (tab === 'top') loadTopPicks();
+            if (tab === 'saved') loadSavedItems();
+        }
+
+        // --- Data Loading ---
+
+        async function loadTopPicks() {
+            const grid = document.getElementById('grid-top');
+            grid.innerHTML = '<div class="col-span-full text-center py-20"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500"></i></div>';
+            
+            try {
+                const res = await fetch(`${API_URL}/items?min_score=1&sort=score`);
+                const items = await res.json();
+                renderGrid(grid, items);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadSavedItems() {
+            const grid = document.getElementById('grid-saved');
+            grid.innerHTML = '<div class="col-span-full text-center py-20"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500"></i></div>';
+            
+            try {
+                const res = await fetch(`${API_URL}/saved`);
+                const items = await res.json();
+                if (items.length === 0) {
+                    grid.innerHTML = '<div class="col-span-full text-center py-20 text-gray-500">No saved items yet.</div>';
+                } else {
+                    renderGrid(grid, items);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function performSearch() {
+            const query = document.getElementById('search-input').value;
+            const seller = document.getElementById('seller-select').value;
+            const grid = document.getElementById('grid-search');
+            
+            grid.innerHTML = '<div class="col-span-full text-center py-20"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500"></i></div>';
+            
+            try {
+                const res = await fetch(`${API_URL}/items?search=${encodeURIComponent(query)}&seller_id=${seller}`);
+                const items = await res.json();
+                if (items.length === 0) {
+                    grid.innerHTML = '<div class="col-span-full text-center py-20 text-gray-500">No items found matching criteria.</div>';
+                } else {
+                    renderGrid(grid, items);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadSellers() {
+            try {
+                const res = await fetch(`${API_URL}/sellers`);
+                const sellers = await res.json();
+                const select = document.getElementById('seller-select');
+                
+                // Sort sellers by name
+                const sortedSellers = Object.entries(sellers).sort((a, b) => a[1].localeCompare(b[1]));
+                
+                sortedSellers.forEach(([id, name]) => {
+                    const opt = document.createElement('option');
+                    opt.value = id;
+                    opt.innerText = name;
+                    select.appendChild(opt);
+                });
+            } catch (e) {
+                console.error("Error loading sellers");
+            }
+        }
+
+        // --- Rendering ---
+
+        function renderGrid(container, items) {
+            container.innerHTML = '';
+            items.forEach(item => {
+                const card = createCard(item);
+                container.appendChild(card);
+            });
+        }
+
+        function createCard(item) {
+            const endDate = new Date(item.end_time);
+            const now = new Date();
+            const timeLeft = endDate - now;
+            const hoursLeft = Math.max(0, Math.floor(timeLeft / (1000 * 60 * 60)));
+            const isUrgent = hoursLeft < 24;
+            
+            // Format the expiration time (e.g., "Nov 28, 6:00 PM")
+            const dateOptions = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+            const formattedDate = endDate.toLocaleDateString('en-US', dateOptions);
+            
+            const el = document.createElement('div');
+            el.className = 'bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700 hover:border-purple-500 transition relative group';
+            
+            let aiBadge = '';
+            if (item.gemini_price > 0) {
+                const profit = item.gemini_price - item.price - item.shipping;
+                const profitClass = profit > 0 ? 'bg-green-600' : 'bg-yellow-600';
+                aiBadge = `<div class="absolute top-2 left-2 ${profitClass} text-white text-xs font-bold px-2 py-1 rounded shadow z-10"><i class="fa-solid fa-robot mr-1"></i>Proj. Profit: $${profit.toFixed(0)}</div>`;
+            }
+
+            el.innerHTML = `
+                ${aiBadge}
+                <div class="relative h-48 bg-gray-700 overflow-hidden">
+                    <img src="${item.image_url}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                    <button onclick="toggleSave('${item.id}', this)" class="absolute top-2 right-2 ${item.is_saved ? 'text-red-500' : 'text-gray-300'} hover:text-red-500 bg-gray-900 bg-opacity-50 rounded-full p-2 transition backdrop-blur-sm">
+                        <i class="${item.is_saved ? 'fa-solid' : 'fa-regular'} fa-heart text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="p-4">
+                    <h3 class="text-base font-bold mb-2 line-clamp-2 h-12 text-gray-100" title="${item.title}">${item.title}</h3>
+                    
+                    <div class="flex justify-between items-center mb-3">
+                        <div>
+                            <p class="text-xs text-gray-400">Current Bid</p>
+                            <p class="text-lg font-bold text-green-400">$${item.price.toFixed(2)}</p>
+                        </div>
+                        <div class="text-right">
+                            <button onclick="analyzeItem('${item.id}')" class="text-xs bg-gray-700 hover:bg-purple-600 px-2 py-1 rounded border border-gray-600 transition text-purple-300 hover:text-white">
+                                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>AI Price
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center text-xs mb-4 border-t border-gray-700 pt-3">
+                        <div class="flex flex-col">
+                            <span class="${isUrgent ? 'text-red-400 font-bold' : 'text-gray-400'}"><i class="fa-regular fa-clock mr-1"></i> Ends: ${formattedDate}</span>
+                            <span class="text-gray-500 text-[10px] mt-1">(${hoursLeft}h remaining)</span>
+                        </div>
+                        <span class="text-blue-400"><i class="fa-solid fa-gavel mr-1"></i> ${item.bids} bids</span>
+                    </div>
+
+                    <a href="https://shopgoodwill.com/item/${item.id}" target="_blank" class="block w-full bg-gray-700 hover:bg-green-600 text-white text-center font-bold py-2 rounded transition text-sm">
+                        View Listing
+                    </a>
+                </div>
+            `;
+            return el;
+        }
+
+        // --- Actions ---
+
+        async function toggleSave(id, btn) {
+            try {
+                const res = await fetch(`${API_URL}/items/${id}/save`, { method: 'POST' });
+                const data = await res.json();
+                
+                const icon = btn.querySelector('i');
+                if (data.is_saved) {
+                    icon.classList.remove('fa-regular');
+                    icon.classList.add('fa-solid');
+                    btn.classList.remove('text-gray-300');
+                    btn.classList.add('text-red-500');
+                } else {
+                    icon.classList.add('fa-regular');
+                    icon.classList.remove('fa-solid');
+                    btn.classList.add('text-gray-300');
+                    btn.classList.remove('text-red-500');
+                    
+                    // If in saved tab, remove card
+                    if (currentTab === 'saved') {
+                        btn.closest('.group').remove();
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function analyzeItem(id) {
+            const modal = document.getElementById('analysis-modal');
+            const content = document.getElementById('modal-content');
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            content.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-4xl text-purple-500"></i><p class="mt-4 text-gray-400">Consulting Gemini AI...</p></div>';
+            
+            try {
+                const res = await fetch(`${API_URL}/items/${id}/analyze`, { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.error) throw new Error(data.error);
+                
+                content.innerHTML = `
+                    <div class="text-center mb-4">
+                        <div class="text-sm text-gray-400 uppercase tracking-wide mb-1">Estimated Value</div>
+                        <div class="text-4xl font-bold text-green-400">$${data.estimated_value}</div>
+                    </div>
+                    <div class="bg-gray-700 p-4 rounded-lg border border-gray-600">
+                        <p class="text-gray-300 italic">"${data.reasoning}"</p>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <button onclick="closeModal()" class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-lg font-bold transition">Done</button>
+                    </div>
+                `;
+                
+                // Refresh current view to update badge
+                if (currentTab === 'top') loadTopPicks();
+                
+            } catch (e) {
+                content.innerHTML = `<div class="text-red-400 text-center p-4">Error: ${e.message}</div>`;
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('analysis-modal').classList.add('hidden');
+            document.getElementById('analysis-modal').classList.remove('flex');
+        }
+
+        async function refreshData() {
+            if(!confirm("Start a fresh scrape? This runs in the background.")) return;
+            await fetch(`${API_URL}/refresh`, { method: 'POST' });
+            alert("Scraper started. Data will update automatically in a few minutes.");
+        }
+    </script>
+</body>
+</html>
