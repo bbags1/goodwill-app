@@ -1,9 +1,0 @@
-flask
-flask-cors
-aiohttp
-schedule
-requests
-google-generativeai
-python-dotenv
-Pillow
-
