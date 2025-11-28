@@ -28,7 +28,7 @@ def get_sellers():
     try:
         with open(SELLER_MAP_PATH, 'r') as f:
             return json.load(f)
-    except:
+            except:
         return {}
 
 # --- Scheduler ---
@@ -105,14 +105,14 @@ def get_items():
     
     conn = get_db_connection()
     items = conn.execute(query, params).fetchall()
-    conn.close()
+            conn.close()
     return jsonify([dict(ix) for ix in items])
 
 @app.route('/api/saved', methods=['GET'])
 def get_saved_items():
     conn = get_db_connection()
     items = conn.execute("SELECT * FROM items WHERE is_saved = 1 ORDER BY end_time ASC").fetchall()
-    conn.close()
+            conn.close()
     return jsonify([dict(ix) for ix in items])
 
 @app.route('/api/items/<id>/save', methods=['POST'])
@@ -126,7 +126,7 @@ def toggle_save(id):
         conn.commit()
         conn.close()
         return jsonify({"status": "success", "is_saved": new_status})
-    conn.close()
+        conn.close()
     return jsonify({"error": "Item not found"}), 404
 
 @app.route('/api/items/<id>/analyze', methods=['POST'])
@@ -158,6 +158,10 @@ def get_sellers_list():
 
 @app.route('/')
 def serve_index():
+    # Debugging: Check if file exists
+    index_path = os.path.join(app.static_folder, 'index.html')
+    if not os.path.exists(index_path):
+        return f"Error: Frontend not found at {index_path}. <br> CWD: {os.getcwd()} <br> Files in CWD: {os.listdir('.')}"
     return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/<path:path>')
@@ -168,7 +172,7 @@ if __name__ == '__main__':
     if not os.path.exists(DB_PATH):
         asyncio.run(scrape_all())
         analyze_items()
-        
+    
     # Use PORT env var if available (for Cloud hosting)
     port = int(os.environ.get("PORT", 5001))
     print(f"Starting server on 0.0.0.0:{port}...")
